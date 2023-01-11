@@ -3,7 +3,7 @@
 #include <QPushButton>
 #include <QFileDialog>
 #include <QLabel>
-#include "EDF/EDFReader.h"
+
 
 MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 {
@@ -14,6 +14,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     setCentralWidget(central);
     setMinimumSize(800, 600);
 
+    m_chartView = new QChartView();
+
     auto labelFileName = new QLabel();
 
     auto btnOpen = new QPushButton(tr("Open"));
@@ -21,35 +23,45 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         auto path = QFileDialog::getOpenFileName(this, tr("EDF file"), "", "EDF (*.edf)");
         if (path.isEmpty()) return;
 
-        m_path = path;
-        QFileInfo fileInfo(path);
-        labelFileName->setText(fileInfo.fileName());
-        labelFileName->setToolTip(fileInfo.absoluteFilePath());
+        if (m_reader) {
+            m_reader->deleteLater();
+            m_reader = nullptr;
+        }
 
-        m_chartView->chart()->removeAllSeries();
-
-        EDFReader reader(path);
-        reader.open();
-        if (reader.channelAmount() > 0)
+        m_reader = new EDFReader(path);
+        if (m_reader->open() && m_reader->channelAmount() > 0)
         {
-            int n = reader.lengthSamples();
-            float sampleSize = 1000.0/reader.samplingRate();
-            for (int i = 0; i<reader.channelAmount(); i++)
+            m_path = path;
+            QFileInfo fileInfo(path);
+            labelFileName->setText(fileInfo.fileName());
+            labelFileName->setToolTip(fileInfo.absoluteFilePath());
+
+            m_chartView->chart()->removeAllSeries();
+
+            int n = m_reader->lengthSamples();
+            int channelAmount = m_reader->channelAmount();
+            float sampleSize = 1000.0/m_reader->samplingRate();
+            for (int i = 0; i<channelAmount; i++)
             {
-                QString ch = reader.getChannelName(i);
+                QString ch = m_reader->getChannelName(i);
                 QLineSeries *series = new QLineSeries();
                 series->setName(ch);
+                qDebug() << "CH" <<ch;
 
-                QVector<float> data = reader.getChannelDataFloat(i, 0, n);
+                QVector<float> data = m_reader->getChannelDataFloat(i, 0, n);
                 float x = 0;
                 for (int j = 0; j<n; j++)
                 {
-                    series->append(x, data[j]);
+                    series->append(QPointF(x, data[j]));
                     x += sampleSize;
                 }
-
                 m_chartView->chart()->addSeries(series);
             }
+        }
+        else
+        {
+            m_reader->deleteLater();
+            m_reader = nullptr;
         }
 
         m_chartView->chart()->createDefaultAxes();
@@ -58,6 +70,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     auto topLayout = new QHBoxLayout();
     topLayout->addWidget(btnOpen, 0);
     topLayout->addWidget(labelFileName, 100);
+    topLayout->setContentsMargins(8,8,8,0);
 
     grid->addLayout(topLayout, 0, 0);
     grid->setRowStretch(1, 100);
