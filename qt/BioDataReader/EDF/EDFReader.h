@@ -59,7 +59,7 @@ protected:
 
 //    Montage_ptr m_current_montage;
     QDateTime m_startDate;    
-    uint m_channelAmount = 0;
+    int m_channelAmount = 0;
     float m_samplingRate = 0;
     QString m_dimension = "";
     QList<edf_annotation_struct> m_annotations;

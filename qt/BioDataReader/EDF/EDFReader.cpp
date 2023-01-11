@@ -177,7 +177,7 @@ bool EDFReader::internalOpen()
                             QTime(m_hdr.starttime_hour, m_hdr.starttime_minute, m_hdr.starttime_second, static_cast<int>(m_hdr.starttime_subsecond)));
 
     m_currHandle = m_hdr.handle;
-    m_channelAmount = static_cast<unsigned int>(m_hdr.edfsignals);
+    m_channelAmount = m_hdr.edfsignals;
     m_seconds = m_hdr.file_duration/EDFLIB_TIME_DIMENSION;
     m_sampleRecord = m_hdr.signalparam[0].smp_in_datarecord;
 
@@ -185,6 +185,8 @@ bool EDFReader::internalOpen()
     m_patientData = m_hdr.birthdate;
     m_patientGender = m_hdr.gender;
     m_equipmentInfo = m_hdr.equipment;
+
+    m_channelNames.clear();
 
     QString filters = m_hdr.signalparam[0].prefilter;
 
@@ -205,11 +207,9 @@ bool EDFReader::internalOpen()
         m_samplingRate = (static_cast<float>(m_hdr.signalparam[0].smp_in_datarecord) /
                 static_cast<float>(m_hdr.datarecord_duration)) * EDFLIB_TIME_DIMENSION;
 
-        for (unsigned int i = 0; i < m_channelAmount; i++)
+        for (int i = 0; i < m_channelAmount; i++)
         {
-//            AmplifierChannel* pChannel = new AmplifierChannel(i, 0.f, ChannelType::EEG);
-//            pChannel->setChannelName(m_hdr.signalparam[i].label);
-//            m_current_montage->push_back(pChannel);
+            m_channelNames << QString(m_hdr.signalparam[i].label).trimmed();
         }
 
         takeCurrentAnnotations();
