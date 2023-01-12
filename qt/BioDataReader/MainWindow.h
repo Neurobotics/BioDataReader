@@ -7,6 +7,7 @@
 #include <QChartView>
 #include "EDF/EDFReader.h"
 #include <QScrollBar>
+#include <QComboBox>
 
 class MainWindow : public QMainWindow
 {
@@ -24,6 +25,8 @@ protected:
     QScrollBar *m_scrollBar = nullptr;
 
     QList<QLineSeries*> m_signals;
+
+    QComboBox *m_comboHorizontalScale = nullptr;
 
     int m_posSeconds = 0;
     int m_lengthSeconds = 0;

@@ -75,9 +75,31 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         rebuildScroll();
     });
 
+    QList<int> secondsList = { 1, 2, 5, 10, 20, 30, 60, 120, 300 };
+    m_comboHorizontalScale = new QComboBox();
+    int selectedSecond = -1;
+    foreach (auto sec, secondsList)
+    {
+        m_comboHorizontalScale->addItem(QString::number(sec) + tr(" s"), sec);
+        if (sec == m_visibleSeconds)
+        {
+            selectedSecond = m_comboHorizontalScale->count() - 1;
+        }
+    }
+
+    m_comboHorizontalScale->setCurrentIndex(selectedSecond);
+
+    connect(m_comboHorizontalScale, QOverload<int>::of(&QComboBox::currentIndexChanged), [=]()
+    {
+        m_visibleSeconds = m_comboHorizontalScale->currentData().toInt();
+        rebuildScroll();
+    });
+
+
     auto topLayout = new QHBoxLayout();
     topLayout->addWidget(btnOpen, 0);
     topLayout->addWidget(labelFileName, 100);
+    topLayout->addWidget(m_comboHorizontalScale, 0);
     topLayout->setContentsMargins(8,8,8,0);
 
     m_scrollBar = new QScrollBar(Qt::Horizontal);
