@@ -28,11 +28,13 @@ protected:
     QList<QLineSeries*> m_signals;
 
     QComboBox *m_comboHorizontalScale = nullptr;
+    QComboBox *m_comboVerticalScale = nullptr;
 
     int m_posSeconds = 0;
     int m_lengthSeconds = 0;
-    int m_visibleSeconds = 5;
+    int m_visibleSeconds = 10;
     int m_visibleSamples = 0;
+    int m_verticalScaleUV = 200;
 
     int m_channelAmount = 0;
     float m_samplingRate = 0;
