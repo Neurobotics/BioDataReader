@@ -14,7 +14,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     setCentralWidget(central);
     resize(QSize(800, 600));
 
-    m_chartView = new QChartView();
+    auto chartsHolder = new QWidget();
+    chartsHolder->setContentsMargins(0,0,0,0);
+    auto chartsLayout = new QVBoxLayout(chartsHolder);
+    chartsLayout->setContentsMargins(8,0,0,0);
+    chartsLayout->setSpacing(0);
 
     auto labelFileName = new QLabel();
 
@@ -32,14 +36,16 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         if (m_reader->open() && m_reader->channelAmount() > 0)
         {
             m_spectrums.clear();
-
+            foreach (auto chartRow, m_chartRows)
+            {
+                chartRow->deleteLater();
+                chartRow->setParent(nullptr);
+            }
+            m_charts.clear();
             m_path = path;
             QFileInfo fileInfo(path);
             labelFileName->setText(fileInfo.fileName());
             labelFileName->setToolTip(fileInfo.absoluteFilePath());
-
-            m_chartView->chart()->removeAllSeries();
-            m_signals.clear();
 
             m_channelAmount = m_reader->channelAmount();
             m_samplingRate = m_reader->samplingRate();
@@ -50,6 +56,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
             for (int i = 0; i<m_channelAmount; i++)
             {
+                auto chartRow = new QWidget();
+                chartRow->setContentsMargins(0,0,0,0);
+                auto chartRowLayout = new QHBoxLayout(chartRow);
+                chartRowLayout->setContentsMargins(0,0,0,0);
+                auto chart = new QChartView();
+                chart->setContentsMargins(0,0,0,0);
+
                 QString ch = m_reader->getChannelName(i);
                 QLineSeries *series = new QLineSeries();
 
@@ -63,8 +76,22 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
                     x += m_sampleSizeSeconds;
                 }
 
-                m_signals << series;
-                m_chartView->chart()->addSeries(series);
+                chart->chart()->addSeries(series);
+                chart->chart()->createDefaultAxes();
+                chart->chart()->legend()->setVisible(false);
+                chart->setContentsMargins(0,0,0,0);
+                chart->chart()->setContentsMargins(0,0,0,0);
+                chart->chart()->setMargins(QMargins(0,0,0,0));
+
+                auto labelChannel = new QLabel(ch);
+                labelChannel->setFixedWidth(32);
+                chartRowLayout->addWidget(labelChannel, 0);
+                chartRowLayout->addWidget(chart, 100);
+
+                m_charts << chart;
+                m_chartRows << chartRow;
+
+                chartsLayout->addWidget(chartRow, 1);
 
                 auto spectrumCalc = new SpectrumCalc();
                 spectrumCalc->setChannelName(ch);
@@ -78,8 +105,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             m_reader->deleteLater();
             m_reader = nullptr;
         }
-
-        m_chartView->chart()->createDefaultAxes();
         rebuildScroll();
     });
 
@@ -104,7 +129,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     });
 
 
-    QList<int> uVlist = { 1, 10, 100, 200, 500, 1000, 5000, 10000 };
+    QList<int> uVlist = { 1, 10, 20, 25, 50, 100, 200, 500, 1000, 5000, 10000 };
     m_comboVerticalScale = new QComboBox();
     int selectedUV = -1;
     foreach (auto uv, uVlist)
@@ -138,7 +163,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     });
 
     grid->addLayout(topLayout, 0, 0);
-    grid->addWidget(m_chartView, 1, 0);
+    grid->addWidget(chartsHolder, 1, 0);
     grid->addWidget(m_scrollBar, 2, 0);
     grid->setRowStretch(1, 100);
 }
@@ -151,7 +176,10 @@ void MainWindow::rebuildScroll()
 {
     m_visibleSamples = m_visibleSeconds * m_samplingRate;
 
-    m_chartView->chart()->axes(Qt::Vertical).first()->setRange(-m_verticalScaleUV, m_verticalScaleUV);
+    foreach (auto chart, m_charts)
+    {
+        chart->chart()->axes(Qt::Vertical).first()->setRange(-m_verticalScaleUV, m_verticalScaleUV);
+    }
 
     m_scrollBar->blockSignals(true);
     m_scrollBar->setRange(0, m_lengthSeconds - m_visibleSeconds);
@@ -162,9 +190,12 @@ void MainWindow::rebuildScroll()
 
 void MainWindow::showData()
 {
-    if (!m_chartView || !m_reader || m_lengthSeconds == 0 || m_channelAmount == 0 || m_samplingRate == 0) return;
-    m_chartView->chart()->axes(Qt::Horizontal).first()->setRange(m_posSeconds, m_posSeconds + m_visibleSeconds);
+    if (!m_reader || m_lengthSeconds == 0 || m_channelAmount == 0 || m_samplingRate == 0) return;
 
+    foreach (auto chart, m_charts)
+    {
+        chart->chart()->axes(Qt::Horizontal).first()->setRange(m_posSeconds, m_posSeconds + m_visibleSeconds);
+    }
 
     auto data = m_reader->getChannelDataFloat(0, m_posSeconds * m_samplingRate, 4 * m_samplingRate);
     auto spectrum = m_spectrums[0]->calculateSpectrum(data);
