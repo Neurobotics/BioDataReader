@@ -13,19 +13,19 @@
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-
 public:
     MainWindow(QWidget *parent = nullptr);
     ~MainWindow();
 
-
 protected:
     QString m_path = "";
-    QChartView *m_chartView = nullptr;
+
     EDFReader *m_reader = nullptr;
     QScrollBar *m_scrollBar = nullptr;
 
-    QList<QLineSeries*> m_signals;
+    QList<QChartView*> m_charts;
+    QList<QChartView*> m_chartsSpectrum;
+    QList<QWidget*> m_chartRows;
 
     QComboBox *m_comboHorizontalScale = nullptr;
     QComboBox *m_comboVerticalScale = nullptr;
