@@ -50,7 +50,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             m_channelAmount = m_reader->channelAmount();
             m_samplingRate = m_reader->samplingRate();
             m_lengthSeconds = m_reader->lengthSamples() / m_samplingRate;
-            m_sampleSizeSeconds = 1.0 / m_samplingRate;
+            m_sampleSizeSeconds = 1.f / m_samplingRate;
+
+            float halfSamplingRate = m_samplingRate / 2.f;
 
             int n = m_reader->lengthSamples();
 
@@ -60,11 +62,17 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
                 chartRow->setContentsMargins(0,0,0,0);
                 auto chartRowLayout = new QHBoxLayout(chartRow);
                 chartRowLayout->setContentsMargins(0,0,0,0);
-                auto chart = new QChartView();
-                chart->setContentsMargins(0,0,0,0);
 
                 QString ch = m_reader->getChannelName(i);
                 QLineSeries *series = new QLineSeries();
+
+                QLineSeries *spectrumBottomLine = new QLineSeries();
+                spectrumBottomLine->append(0, 0);
+                spectrumBottomLine->append(halfSamplingRate, 0);
+                QLineSeries *spectrumLine = new QLineSeries();
+                QAreaSeries *spectrumArea = new QAreaSeries();
+                spectrumArea->setLowerSeries(spectrumBottomLine);
+                spectrumArea->setUpperSeries(spectrumLine);
 
                 series->setName(ch);
 
@@ -76,6 +84,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
                     x += m_sampleSizeSeconds;
                 }
 
+                auto chart = new QChartView();
                 chart->chart()->addSeries(series);
                 chart->chart()->createDefaultAxes();
                 chart->chart()->legend()->setVisible(false);
@@ -83,10 +92,20 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
                 chart->chart()->setContentsMargins(0,0,0,0);
                 chart->chart()->setMargins(QMargins(0,0,0,0));
 
+                auto spectrumChart = new QChartView();
+                spectrumChart->chart()->addSeries(spectrumArea);
+                spectrumChart->chart()->createDefaultAxes();
+                spectrumChart->chart()->legend()->setVisible(false);
+                spectrumChart->setContentsMargins(0,0,0,0);
+                spectrumChart->chart()->setContentsMargins(0,0,0,0);
+                spectrumChart->chart()->setMargins(QMargins(0,0,0,0));
+                spectrumChart->chart()->axes(Qt::Horizontal).first()->setRange(0, halfSamplingRate);
+
                 auto labelChannel = new QLabel(ch);
                 labelChannel->setFixedWidth(32);
                 chartRowLayout->addWidget(labelChannel, 0);
                 chartRowLayout->addWidget(chart, 100);
+                chartRowLayout->addWidget(spectrumChart, 40);
 
                 m_charts << chart;
                 m_chartRows << chartRow;
@@ -96,8 +115,11 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
                 auto spectrumCalc = new SpectrumCalc();
                 spectrumCalc->setChannelName(ch);
                 spectrumCalc->setDataFrequency(m_samplingRate);
-                spectrumCalc->setWindowSize(4);
+                spectrumCalc->setWindowSize(m_visibleSeconds);
                 m_spectrums << spectrumCalc;
+
+                if  (i == 0) m_frequencies = spectrumCalc->getFrequencies();
+                m_linesSpectrum << spectrumLine;
             }
         }
         else
@@ -125,6 +147,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     connect(m_comboHorizontalScale, QOverload<int>::of(&QComboBox::currentIndexChanged), [=]()
     {
         m_visibleSeconds = m_comboHorizontalScale->currentData().toInt();
+        for (int i = 0; i<m_spectrums.length(); i++)
+        {
+            m_spectrums[i]->setWindowSize(m_visibleSeconds);
+            if (i == 0) m_frequencies = m_spectrums[i]->getFrequencies();
+        }
+
         rebuildScroll();
     });
 
@@ -197,9 +225,16 @@ void MainWindow::showData()
         chart->chart()->axes(Qt::Horizontal).first()->setRange(m_posSeconds, m_posSeconds + m_visibleSeconds);
     }
 
-    auto data = m_reader->getChannelDataFloat(0, m_posSeconds * m_samplingRate, 4 * m_samplingRate);
-    auto spectrum = m_spectrums[0]->calculateSpectrum(data);
-
-    qDebug() << "S" << spectrum;
+    for (int s = 0, m = m_spectrums.length(); s < m; s++)
+    {
+        auto data = m_reader->getChannelDataFloat(s, m_posSeconds * m_samplingRate, m_visibleSeconds * m_samplingRate);
+        auto spectrum = m_spectrums[s]->calculateSpectrum(data);
+        QVector<QPointF> points;
+        for (int i = 0, n = spectrum.length(); i<n; i++)
+        {
+            points << QPointF(m_frequencies[i], spectrum[i]);
+        }
+        m_linesSpectrum[s]->replace(points);
+    }
 }
 
