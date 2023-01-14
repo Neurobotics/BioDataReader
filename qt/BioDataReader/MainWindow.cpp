@@ -31,6 +31,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         m_reader = new EDFReader(path);
         if (m_reader->open() && m_reader->channelAmount() > 0)
         {
+            m_spectrums.clear();
+
             m_path = path;
             QFileInfo fileInfo(path);
             labelFileName->setText(fileInfo.fileName());
@@ -63,6 +65,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
 
                 m_signals << series;
                 m_chartView->chart()->addSeries(series);
+
+                auto spectrumCalc = new SpectrumCalc();
+                spectrumCalc->setChannelName(ch);
+                spectrumCalc->setDataFrequency(m_samplingRate);
+                spectrumCalc->setWindowSize(4);
+                m_spectrums << spectrumCalc;
             }
         }
         else
@@ -134,5 +142,10 @@ void MainWindow::showData()
 {
     if (!m_chartView || !m_reader || m_lengthSeconds == 0 || m_channelAmount == 0 || m_samplingRate == 0) return;
     m_chartView->chart()->axes(Qt::Horizontal).first()->setRange(m_posSeconds, m_posSeconds + m_visibleSeconds);
+
+    auto data = m_reader->getChannelDataFloat(0, m_posSeconds * m_samplingRate, 4 * m_samplingRate);
+    auto spectrum = m_spectrums[0]->calculateSpectrum(data);
+
+    qDebug() << "S" << spectrum;
 }
 
