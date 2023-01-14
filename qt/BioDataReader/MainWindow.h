@@ -8,6 +8,7 @@
 #include "EDF/EDFReader.h"
 #include <QScrollBar>
 #include <QComboBox>
+#include "spectrum/SpectrumCalc.h"
 
 class MainWindow : public QMainWindow
 {
@@ -39,5 +40,7 @@ protected:
 
     void rebuildScroll();
     void showData();
+
+    QList<SpectrumCalc*> m_spectrums;
 };
 #endif // MAINWINDOW_H
