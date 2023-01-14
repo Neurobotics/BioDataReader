@@ -9,6 +9,7 @@
 #include <QScrollBar>
 #include <QComboBox>
 #include "spectrum/SpectrumCalc.h"
+#include <QAreaSeries>
 
 class MainWindow : public QMainWindow
 {
@@ -25,7 +26,10 @@ protected:
 
     QList<QChartView*> m_charts;
     QList<QChartView*> m_chartsSpectrum;
+    QList<QLineSeries*> m_linesSpectrum;
     QList<QWidget*> m_chartRows;
+
+    QVector<float> m_frequencies;
 
     QComboBox *m_comboHorizontalScale = nullptr;
     QComboBox *m_comboVerticalScale = nullptr;
