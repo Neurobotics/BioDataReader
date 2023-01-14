@@ -83,7 +83,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
         rebuildScroll();
     });
 
-    QList<int> secondsList = { 1, 2, 5, 10, 20, 30, 60, 120, 300 };
+
+    QList<int> secondsList = { 1, 2, 4, 5, 10, 20, 30, 60, 120, 300 };
     m_comboHorizontalScale = new QComboBox();
     int selectedSecond = -1;
     foreach (auto sec, secondsList)
@@ -94,7 +95,6 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
             selectedSecond = m_comboHorizontalScale->count() - 1;
         }
     }
-
     m_comboHorizontalScale->setCurrentIndex(selectedSecond);
 
     connect(m_comboHorizontalScale, QOverload<int>::of(&QComboBox::currentIndexChanged), [=]()
@@ -104,10 +104,30 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent)
     });
 
 
+    QList<int> uVlist = { 1, 10, 100, 200, 500, 1000, 5000, 10000 };
+    m_comboVerticalScale = new QComboBox();
+    int selectedUV = -1;
+    foreach (auto uv, uVlist)
+    {
+        m_comboVerticalScale->addItem("±" + QString::number(uv) + tr(" uV"), uv);
+        if (uv == m_verticalScaleUV)
+        {
+            selectedUV = m_comboVerticalScale->count() - 1;
+        }
+    }
+    m_comboVerticalScale->setCurrentIndex(selectedUV);
+
+    connect(m_comboVerticalScale, QOverload<int>::of(&QComboBox::currentIndexChanged), [=]()
+    {
+        m_verticalScaleUV = m_comboVerticalScale->currentData().toInt();
+        rebuildScroll();
+    });
+
     auto topLayout = new QHBoxLayout();
     topLayout->addWidget(btnOpen, 0);
     topLayout->addWidget(labelFileName, 100);
     topLayout->addWidget(m_comboHorizontalScale, 0);
+    topLayout->addWidget(m_comboVerticalScale, 0);
     topLayout->setContentsMargins(8,8,8,0);
 
     m_scrollBar = new QScrollBar(Qt::Horizontal);
@@ -131,6 +151,8 @@ void MainWindow::rebuildScroll()
 {
     m_visibleSamples = m_visibleSeconds * m_samplingRate;
 
+    m_chartView->chart()->axes(Qt::Vertical).first()->setRange(-m_verticalScaleUV, m_verticalScaleUV);
+
     m_scrollBar->blockSignals(true);
     m_scrollBar->setRange(0, m_lengthSeconds - m_visibleSeconds);
     m_scrollBar->blockSignals(false);
@@ -142,6 +164,7 @@ void MainWindow::showData()
 {
     if (!m_chartView || !m_reader || m_lengthSeconds == 0 || m_channelAmount == 0 || m_samplingRate == 0) return;
     m_chartView->chart()->axes(Qt::Horizontal).first()->setRange(m_posSeconds, m_posSeconds + m_visibleSeconds);
+
 
     auto data = m_reader->getChannelDataFloat(0, m_posSeconds * m_samplingRate, 4 * m_samplingRate);
     auto spectrum = m_spectrums[0]->calculateSpectrum(data);
