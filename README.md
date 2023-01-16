@@ -17,5 +17,6 @@ Educational [quick-start] EDF file viewer [with spectrum] written in JS, C++ and
    pip install PyQt5
    pip install pyqtgraph
    pip install pyedflib
+   pip install scipy
 ```
 3. Run `main.py`
