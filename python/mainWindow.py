@@ -22,10 +22,12 @@ class MainWindow(QtWidgets.QMainWindow):
         btnOpen = QtWidgets.QPushButton("Open")
         btnOpen.clicked.connect(lambda: self.openfile())
 
-        xRange = [ 1, 2, 4, 5]
+        xRange = [ 1, 2, 4, 5, 10, 20, 30, 60, 120, 300 ]
         self.comboXrange = QtWidgets.QComboBox()
         for x in xRange:
             self.comboXrange.addItem(str(x) + " s", x)
+        self.comboXrange.setCurrentIndex(xRange.index(10))            
+        self.comboXrange.currentIndexChanged.connect(self.updateXrange)
 
         yRange = [ 1, 10, 20, 25, 50, 100, 200, 500, 1000, 5000, 10000 ]
         self.comboYrange = QtWidgets.QComboBox()
@@ -38,8 +40,12 @@ class MainWindow(QtWidgets.QMainWindow):
         buttonsLayout.setContentsMargins(0, 0, 0, 0)
         buttonsLayout.addWidget(btnOpen, 0)
         buttonsLayout.addWidget(self.labelFileName, 100)
-        # buttonsLayout.addWidget(self.comboXrange, 0)
+        buttonsLayout.addWidget(self.comboXrange, 0)
         buttonsLayout.addWidget(self.comboYrange, 0)
+
+        self.scrollBar = QtWidgets.QScrollBar(QtCore.Qt.Horizontal)
+        self.scrollBar.setRange(0, 0)
+        self.scrollBar.valueChanged.connect(self.updateXpos)
 
         # Создание компоновки графиков
         self.graphWidgets = []
@@ -54,9 +60,25 @@ class MainWindow(QtWidgets.QMainWindow):
         layout = QtWidgets.QVBoxLayout(centralWidget)
         layout.addLayout(buttonsLayout)
         layout.addWidget(graphWidgetsHolder, 100)
+        layout.addWidget(self.scrollBar)
         self.setWindowTitle("BioDataReader")  
         self.setCentralWidget(centralWidget)               
-        self.showMaximized()            
+        self.showMaximized()   
+
+    def updateXrange(self):
+        x = int(self.comboXrange.currentData())
+        scrollableValue = int(self.duration - x)
+        if self.duration > 0:
+            self.scrollBar.setRange(0, scrollableValue)
+        else:
+            self.scrollBar.setRange(0, 0)
+        self.updateXpos()
+
+    def updateXpos(self):
+        x = int(self.comboXrange.currentData())
+        pos = self.scrollBar.value()
+        for plot in self.graphWidgets:
+            plot.setXRange(pos, pos + x)
 
     def updateYrange(self):
         y = self.comboYrange.currentData()
@@ -112,5 +134,6 @@ class MainWindow(QtWidgets.QMainWindow):
             self.graphWidgets.append(plot)
 
             self.graphWidgetRows.append(widgetRow)
-            self.graphWidgetsLayout.addWidget(widgetRow)
+            self.graphWidgetsLayout.addWidget(widgetRow)            
         self.updateYrange()
+        self.updateXrange()
