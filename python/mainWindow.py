@@ -4,6 +4,10 @@ from PyQt5.QtCore import pyqtSlot
 import pyqtgraph as pg
 from pyqtgraph import PlotWidget, plot
 from pyedflib import highlevel
+from scipy import signal
+from scipy.fft import fftshift
+import numpy as np
+from scipy.fft import fft, fftfreq
 
 class MainWindow(QtWidgets.QMainWindow):
     samplingRate = 0
@@ -49,6 +53,7 @@ class MainWindow(QtWidgets.QMainWindow):
 
         # Создание компоновки графиков
         self.graphWidgets = []
+        self.spectrumWidgets = []
         self.graphWidgetRows = []
         graphWidgetsHolder = QtWidgets.QWidget()
         graphWidgetsHolder.setContentsMargins(0, 0, 0, 0)
@@ -76,9 +81,37 @@ class MainWindow(QtWidgets.QMainWindow):
 
     def updateXpos(self):
         x = int(self.comboXrange.currentData())
-        pos = self.scrollBar.value()
+        start = self.scrollBar.value()
+        end = start + x
         for plot in self.graphWidgets:
-            plot.setXRange(pos, pos + x)
+            plot.setXRange(start, end)
+
+        sampleStart = int(start * self.samplingRate)
+        sampleEnd = int(end * self.samplingRate)
+
+        N = int(x * self.samplingRate)
+        T = 1.0 / self.samplingRate
+        xf = fftfreq(N, T)[:N//2]
+        maxY = 1
+        for ch in range(self.channelCount):
+            sig = self.signals[ch]
+            portion = []
+            for i in range(sampleStart, sampleEnd):
+                portion.append(sig[i])          
+
+            yf = fft(portion)
+            yf2 = 2.0/N * np.abs(yf[0:N//2])
+            
+            maxSpectrum = max(yf2)
+            if maxSpectrum > maxY: maxY = maxSpectrum
+
+            self.spectrumWidgets[ch].clear()
+            self.spectrumWidgets[ch].plot(xf, yf2)
+        
+        for ch in range(self.channelCount):
+            self.spectrumWidgets[ch].setYRange(0, maxY)
+
+            
 
     def updateYrange(self):
         y = self.comboYrange.currentData()
@@ -95,14 +128,16 @@ class MainWindow(QtWidgets.QMainWindow):
         for widgetRow in self.graphWidgetRows:
             widgetRow.setParent(None)
         self.graphWidgetRows.clear()
+        self.spectrumWidgets.clear()
+        self.graphWidgets.clear()
 
         fileInfo = QtCore.QFileInfo(fileName)
         self.labelFileName.setToolTip(fileName)
 
-        signals, signal_headers, header = highlevel.read_edf(fileName)
+        self.signals, signal_headers, header = highlevel.read_edf(fileName)
         self.samplingRate = signal_headers[0]['sample_rate']
-        self.channelCount = len(signals)
-        self.durationSamples = len(signals[0])
+        self.channelCount = len(self.signals)
+        self.durationSamples = len(self.signals[0])
         self.duration = self.durationSamples / self.samplingRate
 
         self.labelFileName.setText(fileInfo.fileName() + " (" + str(self.duration) + "s, " + str(self.samplingRate) + "Hz, " + str(self.channelCount) + "ch)")
@@ -113,18 +148,20 @@ class MainWindow(QtWidgets.QMainWindow):
             label = QtWidgets.QLabel(channelName)
             label.setMinimumWidth(32)
             plot = pg.PlotWidget()
+            spectrumPlot = pg.PlotWidget()
 
             widgetRow = QtWidgets.QWidget()
             widgetRowLayout = QtWidgets.QHBoxLayout(widgetRow)
             widgetRowLayout.setContentsMargins(0, 0, 0, 0)
             widgetRowLayout.addWidget(label)
             widgetRowLayout.addWidget(plot, 100)
+            widgetRowLayout.addWidget(spectrumPlot, 40)
             
             axisX = []
             axisY = []
             x = 0.0
             
-            signal = signals[ch] 
+            signal = self.signals[ch] 
             for i in range(self.durationSamples):
                 axisX.append(x)
                 x += self.xStep
@@ -132,8 +169,10 @@ class MainWindow(QtWidgets.QMainWindow):
 
             plot.plot(axisX, axisY)
             self.graphWidgets.append(plot)
+            self.spectrumWidgets.append(spectrumPlot)
 
             self.graphWidgetRows.append(widgetRow)
-            self.graphWidgetsLayout.addWidget(widgetRow)            
+            self.graphWidgetsLayout.addWidget(widgetRow)           
+
         self.updateYrange()
         self.updateXrange()
